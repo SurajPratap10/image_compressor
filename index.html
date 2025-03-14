@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Image Optimizer & Converter</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- JSZip for ZIP downloads -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+    <!-- FileSaver for saving ZIP -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+    <style>
+        body {
+            background: #f5f6fa;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            font-family: 'Arial', sans-serif;
+        }
+
+        .container {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+            padding: 2rem;
+            max-width: 900px;
+            width: 100%;
+            margin: 1rem;
+        }
+
+        .upload-box {
+            background: #2196f3;
+            border: 2px dashed white;
+            border-radius: 12px;
+            padding: 3rem;
+            text-align: center;
+            color: white;
+            transition: transform 0.3s ease;
+        }
+
+        .upload-box:hover {
+            transform: scale(1.02);
+        }
+
+        .btn {
+            transition: all 0.3s ease;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+        }
+
+        .result-box {
+            background: #f9fafb;
+            border-radius: 8px;
+            padding: 1rem;
+            margin-top: 1rem;
+            max-height: 300px;
+            overflow-y: auto;
+        }
+
+        .download-all-btn,
+        .download-selected-btn {
+            background: #4caf50;
+        }
+
+        .download-all-btn:hover,
+        .download-selected-btn:hover {
+            background-color: #45a049;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1 class="text-2xl font-bold text-gray-800 mb-2">Image Optimizer & Converter</h1>
+        <p class="text-gray-600 mb-6">Optimize, convert, and download images with ease.</p>
+
+        <!-- Upload Section -->
+        <div class="upload-box mb-6">
+            <div class="flex justify-center mb-4">
+                <svg class="w-12 h-12 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                    xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12">
+                    </path>
+                </svg>
+            </div>
+            <p class="text-lg font-medium mb-2">Drop files or click here</p>
+            <input type="file" id="imageInput" multiple accept="image/*" webkitdirectory directory class="hidden"
+                onchange="displaySelectedFiles()">
+            <button onclick="document.getElementById('imageInput').click()"
+                class="bg-white text-blue-600 py-2 px-4 rounded-lg font-medium">
+                Choose Folder or Files
+            </button>
+        </div>
+
+        <!-- Selected Files -->
+        <div id="selectedFiles" class="text-gray-600 mb-4"></div>
+
+        <!-- Options Section -->
+        <div class="flex flex-col md:flex-row gap-4 mb-6">
+            <!-- Compression Level -->
+            <div class="flex-1">
+                <label class="block text-gray-700 font-medium mb-2">Compression Level</label>
+                <div class="flex items-center gap-4">
+                    <label class="flex items-center">
+                        <input type="radio" name="compression" value="best-quality" class="mr-2" checked>
+                        <span>Best Quality</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="radio" name="compression" value="smallest-file" class="mr-2">
+                        <span>Smallest File</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Output Format -->
+            <div class="flex-1">
+                <label class="block text-gray-700 font-medium mb-2">Output Format</label>
+                <select id="outputFormat" class="w-full p-2 border rounded-lg">
+                    <option value="png">PNG</option>
+                    <option value="jpeg">JPEG</option>
+                    <option value="webp">WebP</option>
+                    <option value="svg">SVG (if applicable)</option>
+                </select>
+            </div>
+        </div>
+
+        <!-- Start Button -->
+        <button onclick="optimizeImages()"
+            class="btn bg-blue-600 text-white py-3 px-6 rounded-lg font-medium w-full mb-6 flex justify-center items-center gap-2">
+            Start
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"
+                xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"></path>
+            </svg>
+        </button>
+
+        <!-- Result Section -->
+        <div id="result" class="result-box hidden">
+            <div class="flex justify-between items-center mb-2">
+                <p id="status" class="font-medium text-gray-700"></p>
+                <div>
+                    <button onclick="downloadSelected()"
+                        class="download-selected-btn text-white py-1 px-3 rounded-lg text-sm mr-2">
+                        Download Selected
+                    </button>
+                    <button onclick="downloadAll()" class="download-all-btn text-white py-1 px-3 rounded-lg text-sm">
+                        Download All
+                    </button>
+                </div>
+            </div>
+            <ul id="fileList" class="space-y-2"></ul>
+        </div>
+    </div>
+
+    <script>
+        let optimizedFiles = [];
+
+        function displaySelectedFiles() {
+            const files = document.getElementById('imageInput').files;
+            const selectedFilesDiv = document.getElementById('selectedFiles');
+            selectedFilesDiv.innerHTML = `<p>Selected: ${files.length} file(s)</p>`;
+        }
+
+        async function optimizeImages() {
+            const files = document.getElementById('imageInput').files;
+            const resultDiv = document.getElementById('result');
+            const statusP = document.getElementById('status');
+            const fileList = document.getElementById('fileList');
+            const compressionLevel = document.querySelector('input[name="compression"]:checked').value;
+            const outputFormat = document.getElementById('outputFormat').value;
+
+            if (files.length === 0) {
+                alert('Please select at least one image file or folder!');
+                return;
+            }
+
+            // Reset and show result box
+            resultDiv.classList.remove('hidden');
+            resultDiv.style.animation = 'fadeIn 0.5s ease';
+            statusP.textContent = 'Processing...';
+            fileList.innerHTML = '';
+            optimizedFiles = [];
+
+            const formData = new FormData();
+            for (let file of files) {
+                formData.append('images', file);
+            }
+            formData.append('compressionLevel', compressionLevel);
+            formData.append('outputFormat', outputFormat);
+
+            try {
+                const response = await fetch('/optimize', {
+                    method: 'POST',
+                    body: formData
+                });
+                const result = await response.json();
+
+                if (response.ok) {
+                    statusP.textContent = result.message;
+                    optimizedFiles = result.files;
+                    result.files.forEach((filePath, index) => {
+                        const fileName = filePath.split('/').pop();
+                        const li = document.createElement('li');
+                        li.className = 'flex justify-between items-center';
+                        li.innerHTML = `
+              <div class="flex items-center gap-2">
+                <input type="checkbox" class="select-file" data-path="${filePath}" data-name="${fileName}">
+                <span>${fileName}</span>
+              </div>
+              <button 
+                onclick="downloadFile('${filePath}', '${fileName}')" 
+                class="bg-green-500 text-white py-1 px-3 rounded-lg text-sm btn"
+              >
+                Download
+              </button>
+            `;
+                        fileList.appendChild(li);
+                    });
+                } else {
+                    statusP.textContent = `Error: ${result.error}`;
+                }
+            } catch (err) {
+                statusP.textContent = `Error: ${err.message}`;
+            }
+        }
+
+        function downloadFile(filePath, fileName) {
+            const link = document.createElement('a');
+            link.href = `/${filePath}`;
+            link.download = fileName;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+
+        async function downloadAll() {
+            const zip = new JSZip();
+            for (const filePath of optimizedFiles) {
+                const fileName = filePath.split('/').pop();
+                const response = await fetch(`/${filePath}`);
+                const blob = await response.blob();
+                zip.file(fileName, blob);
+            }
+            zip.generateAsync({ type: 'blob' }).then(content => {
+                saveAs(content, 'optimized-images.zip');
+            });
+        }
+
+        async function downloadSelected() {
+            const selectedFiles = document.querySelectorAll('.select-file:checked');
+            if (selectedFiles.length === 0) {
+                alert('Please select at least one file to download!');
+                return;
+            }
+
+            const zip = new JSZip();
+            for (const checkbox of selectedFiles) {
+                const filePath = checkbox.dataset.path;
+                const fileName = checkbox.dataset.name;
+                const response = await fetch(`/${filePath}`);
+                const blob = await response.blob();
+                zip.file(fileName, blob);
+            }
+            zip.generateAsync({ type: 'blob' }).then(content => {
+                saveAs(content, 'selected-optimized-images.zip');
+            });
+        }
+    </script>
+</body>
+
+</html>
